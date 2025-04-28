@@ -1,5 +1,5 @@
 .terraform/
 *tfstate*
 *.tfvars
-.main2*
+.test*
 *.pem
