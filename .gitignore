@@ -1,5 +1,4 @@
-terraform.tfstate
-terraform.tfstate.backup
+terraform.tfstate*
 *.tfvars
 .terraform/
-.main2.tf
+.main2*
