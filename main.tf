@@ -20,7 +20,30 @@ provider "aws" {
   }
 }
 
+provider "tls" {}
+
+
 provider "random" {}
+
+resource "tls_private_key" "ec2_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "local_file" "private_key" {
+  filename        = "ec2-key.pem"
+  content         = tls_private_key.ec2_key.private_key_openssh
+  file_permission = "0400"
+}
+
+resource "aws_key_pair" "ec2_key_pair" {
+  key_name   = "ec2-ssh-key"
+  public_key = tls_private_key.ec2_key.public_key_openssh
+  tags = {
+    Project = "Internship"
+  }
+}
+
 
 resource "random_id" "suffix" {
   byte_length = 4
@@ -108,9 +131,10 @@ resource "aws_security_group" "allow_ssh" {
 
 
 resource "aws_instance" "test_instance" {
-  ami                  = "ami-08f78cb3cc8a4578e"  
-  instance_type        = "t3.nano"
-  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
+  ami                    = "ami-08f78cb3cc8a4578e"
+  instance_type          = "t3.nano"
+  key_name               = aws_key_pair.ec2_key_pair.key_name
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
   tags = {
     Name    = "S3-Test-Instance",

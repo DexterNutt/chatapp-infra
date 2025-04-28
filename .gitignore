@@ -1,4 +1,5 @@
-terraform.tfstate*
-*.tfvars
 .terraform/
+*tfstate*
+*.tfvars
 .main2*
+*.pem
