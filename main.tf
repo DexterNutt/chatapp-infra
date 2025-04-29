@@ -37,3 +37,21 @@ output "s3_bucket_name" {
 output "s3_bucket_domain_name" {
   value = aws_s3_bucket.chat_app_bucket.bucket_domain_name
 }
+
+resource "tls_private_key" "ecs_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "local_file" "private_key" {
+  filename        = "ecs-key.pem"
+  content         = tls_private_key.ecs_key.private_key_openssh
+  file_permission = "0400"
+}
+
+resource "aws_key_pair" "ecs_key_pair" {
+  key_name   = "${local.name_prefix}-ecs-ssh-key"  
+  public_key = tls_private_key.ecs_key.public_key_openssh
+  tags       = local.common_tags
+}
+

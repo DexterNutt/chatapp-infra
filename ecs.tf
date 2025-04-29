@@ -66,7 +66,11 @@ resource "aws_launch_template" "chat_app_launch_template" {
   image_id               = data.aws_ami.ecs_ami.id
   instance_type          = local.instance_type
   update_default_version = true
-  vpc_security_group_ids = [aws_security_group.app_sg.id]
+  key_name               = aws_key_pair.ecs_key_pair.key_name
+  vpc_security_group_ids = concat(
+    [aws_security_group.app_sg.id],
+    [aws_security_group.ecs_ssh_sg.id]
+  )
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance_profile.name

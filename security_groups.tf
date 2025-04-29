@@ -3,6 +3,16 @@ resource "aws_security_group" "app_sg" {
   description = "Security group for chat application ECS tasks"
   vpc_id      = aws_vpc.chat_app_vpc.id
   
+  # SSH access
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.ssh_allowed_cidr]
+    description = "Allow SSH access from admin IP"
+  }
+  
+  # HTTP access
   ingress {
     from_port   = 80
     to_port     = 80
@@ -11,6 +21,7 @@ resource "aws_security_group" "app_sg" {
     description = "Allow HTTP from anywhere"
   }
   
+  # HTTPS access
   ingress {
     from_port   = 443
     to_port     = 443
@@ -19,6 +30,7 @@ resource "aws_security_group" "app_sg" {
     description = "Allow HTTPS from anywhere"
   }
   
+  # Application port
   ingress {
     from_port   = local.app_port
     to_port     = local.app_port
@@ -27,6 +39,7 @@ resource "aws_security_group" "app_sg" {
     description = "Allow app port only from within VPC"
   }
   
+  # Outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
@@ -63,5 +76,23 @@ resource "aws_security_group" "db_sg" {
   
   tags = merge(local.common_tags, {
     Name = local.resource_names.db_sg
+  })
+}
+
+resource "aws_security_group" "ecs_ssh_sg" {
+  name        = "${local.resource_names.app_sg}-ssh"
+  description = "SSH access for ECS instances"
+  vpc_id      = aws_vpc.chat_app_vpc.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.ssh_allowed_cidr]
+    description = "SSH access from restricted IPs"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.resource_names.app_sg}-ssh"
   })
 }

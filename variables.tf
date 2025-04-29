@@ -27,3 +27,22 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "ssh_allowed_cidr" {
+  description = "CIDR block allowed to SSH into ECS instances"
+  type        = string
+  default     = "0.0.0.0/0" #Home IP can be used here to restrict access from only one IP address
+}
+
+variable "ssh_key_name" {
+  description = "Name of the SSH key pair to use for ECS instances"
+  type        = string
+  default     = ""
+}
+
+variable "ssh_public_key" {
+  description = "Public SSH key for accessing ECS instances"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
