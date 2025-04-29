@@ -1,5 +1,5 @@
 resource "aws_ecs_cluster" "chat_app_cluster" {
-  name = "${local.project_name}-cluster"
+  name = local.resource_names.ecs_cluster
 
   setting {
     name  = "containerInsights"
@@ -15,7 +15,7 @@ resource "aws_ecs_cluster_capacity_providers" "chat_app_cluster_capacity" {
 }
 
 resource "aws_ecs_capacity_provider" "chat_app_capacity" {
-  name = "${local.project_name}-capacity"
+  name = local.resource_names.ecs_capacity
 
   auto_scaling_group_provider {
     auto_scaling_group_arn = aws_autoscaling_group.chat_app_asg.arn
@@ -28,10 +28,10 @@ resource "aws_ecs_capacity_provider" "chat_app_capacity" {
 }
 
 resource "aws_autoscaling_group" "chat_app_asg" {
-  name                = "${local.project_name}-ecs-asg"
-  min_size            = 1
-  max_size            = 1
-  desired_capacity    = 1
+  name                = local.resource_names.ecs_asg
+  min_size            = local.min_capacity
+  max_size            = local.max_capacity
+  desired_capacity    = local.desired_capacity
   vpc_zone_identifier = [aws_subnet.private_subnet_1.id]
 
   launch_template {
@@ -41,7 +41,7 @@ resource "aws_autoscaling_group" "chat_app_asg" {
 
   tag {
     key                 = "Name"
-    value               = "${local.project_name}-ecs"
+    value               = local.resource_names.ecs_instance
     propagate_at_launch = true
   }
 
@@ -62,9 +62,9 @@ resource "aws_autoscaling_group" "chat_app_asg" {
 }
 
 resource "aws_launch_template" "chat_app_launch_template" {
-  name                   = "${local.project_name}-launch-template"
+  name                   = local.resource_names.ecs_lt
   image_id               = data.aws_ami.ecs_ami.id
-  instance_type          = "t3.micro"
+  instance_type          = local.instance_type
   update_default_version = true
   vpc_security_group_ids = [aws_security_group.app_sg.id]
 
@@ -75,7 +75,7 @@ resource "aws_launch_template" "chat_app_launch_template" {
   tag_specifications {
     resource_type = "instance"
     tags = merge(local.common_tags, {
-      Name = "${local.project_name}-ecs-instance"
+      Name = local.resource_names.ecs_instance
     })
   }
 
@@ -92,18 +92,18 @@ EOF
 }
 
 resource "aws_ecs_task_definition" "chat_app_task" {
-  family                   = "${local.project_name}-task"
+  family                   = local.resource_names.ecs_task
   network_mode             = "bridge"
   requires_compatibilities = ["EC2"]
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode([{
-    name      = "${local.project_name}-container"
+    name      = local.resource_names.ecs_container
     image     = "${aws_ecr_repository.chat_app_repo.repository_url}:latest"
     essential = true
     portMappings = [{
-      containerPort = 3000
-      hostPort      = 3000
+      containerPort = local.app_port
+      hostPort      = local.app_port
     }]
     environment = [
       {
@@ -137,10 +137,10 @@ resource "aws_ecs_task_definition" "chat_app_task" {
 }
 
 resource "aws_ecs_service" "chat_app_service" {
-  name            = "${local.project_name}-service"
+  name            = local.resource_names.ecs_service
   cluster         = aws_ecs_cluster.chat_app_cluster.id
   task_definition = aws_ecs_task_definition.chat_app_task.arn
-  desired_count   = 1
+  desired_count   = local.desired_capacity
 
   ordered_placement_strategy {
     type  = "binpack"

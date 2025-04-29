@@ -1,56 +1,52 @@
-#* VPC
 resource "aws_vpc" "chat_app_vpc" {
-  cidr_block           = "15.0.0.0/20"
+  cidr_block           = local.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = merge(local.common_tags, {
-    Name = "${local.project_name}-vpc"
+    Name = local.resource_names.vpc
   })
 }
 
-#* Internet Gateway
 resource "aws_internet_gateway" "chat_app_igw" {
   vpc_id = aws_vpc.chat_app_vpc.id
 
   tags = merge(local.common_tags, {
-    Name = "${local.project_name}-igw"
+    Name = local.resource_names.igw
   })
 }
 
-#* Subnets
 resource "aws_subnet" "public_subnet" {
   vpc_id                  = aws_vpc.chat_app_vpc.id
-  cidr_block              = "15.0.1.0/25"
+  cidr_block              = local.public_subnet_cidr
   availability_zone       = "${local.region}a"
   map_public_ip_on_launch = true
 
   tags = merge(local.common_tags, {
-    Name = "${local.project_name}-public-subnet"
+    Name = local.resource_names.public_subnet
   })
 }
 
 resource "aws_subnet" "private_subnet_1" {
   vpc_id            = aws_vpc.chat_app_vpc.id
-  cidr_block        = "15.0.2.0/25"
+  cidr_block        = local.private_subnet_1_cidr
   availability_zone = "${local.region}a"
 
   tags = merge(local.common_tags, {
-    Name = "${local.project_name}-private-subnet-1"
+    Name = local.resource_names.private_subnet_1
   })
 }
 
 resource "aws_subnet" "private_subnet_2" {
   vpc_id            = aws_vpc.chat_app_vpc.id
-  cidr_block        = "15.0.3.0/25"
+  cidr_block        = local.private_subnet_2_cidr
   availability_zone = "${local.region}a"
 
   tags = merge(local.common_tags, {
-    Name = "${local.project_name}-private-subnet-2"
+    Name = local.resource_names.private_subnet_2
   })
 }
 
-#* Route Tables
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.chat_app_vpc.id
 
@@ -60,7 +56,7 @@ resource "aws_route_table" "public_rt" {
   }
 
   tags = merge(local.common_tags, {
-    Name = "${local.project_name}-public-rt"
+    Name = local.resource_names.public_rt
   })
 }
 
@@ -73,7 +69,7 @@ resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.chat_app_vpc.id
 
   tags = merge(local.common_tags, {
-    Name = "${local.project_name}-private-rt"
+    Name = local.resource_names.private_rt
   })
 }
 
@@ -98,7 +94,7 @@ resource "aws_nat_gateway" "chat_app_nat" {
   subnet_id     = aws_subnet.public_subnet.id
 
   tags = merge(local.common_tags, {
-    Name = "${local.project_name}-nat"
+    Name = local.resource_names.nat
   })
 
   depends_on = [aws_internet_gateway.chat_app_igw]

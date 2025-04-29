@@ -8,19 +8,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-north-1"
-}
-
-locals {
-  project_name = "chat-app"
-  environment  = "intern"
-  region       = "eu-north-1"
-
-  common_tags = {
-    Project     = "Intern"
-    Environment = "Development"
-    ManagedBy   = "Terraform"
-  }
+  region = local.region
 }
 
 data "aws_caller_identity" "current" {}

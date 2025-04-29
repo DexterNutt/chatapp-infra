@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "chat_app_bucket" {
-  bucket = "${local.project_name}-${data.aws_caller_identity.current.account_id}"
+  bucket = local.resource_names.s3_bucket
 
   tags = local.common_tags
 }

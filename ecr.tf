@@ -1,5 +1,5 @@
 resource "aws_ecr_repository" "chat_app_repo" {
-  name                 = "${local.project_name}-repo"
+  name                 = local.resource_names.ecr_repo
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {

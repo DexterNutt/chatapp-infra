@@ -1,6 +1,5 @@
-# ECS Task Execution Role
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "${local.project_name}-task-execution-role"
+  name = local.resource_names.task_role
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -13,7 +12,9 @@ resource "aws_iam_role" "ecs_task_execution_role" {
     }]
   })
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, {
+    Name = local.resource_names.task_role
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
@@ -22,7 +23,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 }
 
 resource "aws_iam_role" "ecs_instance_role" {
-  name = "${local.project_name}-instance-role"
+  name = local.resource_names.instance_role
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -35,11 +36,13 @@ resource "aws_iam_role" "ecs_instance_role" {
     }]
   })
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, {
+    Name = local.resource_names.instance_role
+  })
 }
 
 resource "aws_iam_policy" "ecs_s3_access_policy" {
-  name        = "${local.project_name}-s3-access-policy"
+  name        = local.resource_names.s3_policy
   description = "Policy to allow ECS tasks to access S3 bucket"
 
   policy = jsonencode({
@@ -60,8 +63,6 @@ resource "aws_iam_policy" "ecs_s3_access_policy" {
       }
     ]
   })
-
-  tags = local.common_tags
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_instance_role_policy" {
@@ -70,7 +71,7 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_role_policy" {
 }
 
 resource "aws_iam_instance_profile" "ecs_instance_profile" {
-  name = "${local.project_name}-ecs-instance-profile"
+  name = local.resource_names.instance_profile
   role = aws_iam_role.ecs_instance_role.name
 }
 
@@ -78,7 +79,6 @@ resource "aws_iam_role_policy_attachment" "ecr_read_only" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
-
 
 resource "aws_iam_role_policy_attachment" "ecs_s3_policy_attachment" {
   role       = aws_iam_role.ecs_task_execution_role.name

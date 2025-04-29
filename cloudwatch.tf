@@ -1,5 +1,5 @@
 resource "aws_cloudwatch_log_group" "chat_app_logs" {
-  name = "/ecs/${local.project_name}"
+  name = local.resource_names.logs
 
   tags = local.common_tags
 }
