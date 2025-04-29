@@ -42,6 +42,7 @@ resource "aws_security_group" "db_sg" {
   vpc_id      = aws_vpc.chat_app_vpc.id
 
   ingress {
+    description     = "Allow PostgreSQL from app security group"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
@@ -59,3 +60,4 @@ resource "aws_security_group" "db_sg" {
     Name = "${local.project_name}-db-sg"
   })
 }
+

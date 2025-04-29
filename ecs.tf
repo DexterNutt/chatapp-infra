@@ -1,11 +1,11 @@
 resource "aws_ecs_cluster" "chat_app_cluster" {
   name = "${local.project_name}-cluster"
-  
+
   setting {
     name  = "containerInsights"
     value = "enabled"
   }
-  
+
   tags = local.common_tags
 }
 
@@ -16,14 +16,14 @@ resource "aws_ecs_cluster_capacity_providers" "chat_app_cluster_capacity" {
 
 resource "aws_ecs_capacity_provider" "chat_app_capacity" {
   name = "${local.project_name}-capacity"
-  
+
   auto_scaling_group_provider {
     auto_scaling_group_arn = aws_autoscaling_group.chat_app_asg.arn
     managed_scaling {
       status = "ENABLED"
     }
   }
-  
+
   tags = local.common_tags
 }
 
@@ -33,24 +33,24 @@ resource "aws_autoscaling_group" "chat_app_asg" {
   max_size            = 1
   desired_capacity    = 1
   vpc_zone_identifier = [aws_subnet.private_subnet_1.id]
-  
+
   launch_template {
-    id = aws_launch_template.chat_app_launch_template.id
+    id      = aws_launch_template.chat_app_launch_template.id
     version = "$Latest"
   }
-  
+
   tag {
     key                 = "Name"
     value               = "${local.project_name}-ecs"
     propagate_at_launch = true
   }
-  
+
   tag {
     key                 = "AmazonECSManaged"
     value               = "true"
     propagate_at_launch = true
   }
-  
+
   dynamic "tag" {
     for_each = local.common_tags
     content {
@@ -67,22 +67,22 @@ resource "aws_launch_template" "chat_app_launch_template" {
   instance_type          = "t3.micro"
   update_default_version = true
   vpc_security_group_ids = [aws_security_group.app_sg.id]
-  
+
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance_profile.name
   }
-  
+
   tag_specifications {
     resource_type = "instance"
     tags = merge(local.common_tags, {
       Name = "${local.project_name}-ecs-instance"
     })
   }
-  
+
   metadata_options {
     http_tokens = "required"
   }
-  
+
   user_data = base64encode(<<EOF
 #!/bin/bash
 echo ECS_CLUSTER=${aws_ecs_cluster.chat_app_cluster.name} >> /etc/ecs/ecs.config
@@ -96,7 +96,7 @@ resource "aws_ecs_task_definition" "chat_app_task" {
   network_mode             = "bridge"
   requires_compatibilities = ["EC2"]
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-  
+
   container_definitions = jsonencode([{
     name      = "${local.project_name}-container"
     image     = "${aws_ecr_repository.chat_app_repo.repository_url}:latest"
@@ -132,7 +132,7 @@ resource "aws_ecs_task_definition" "chat_app_task" {
       }
     }
   }])
-  
+
   tags = local.common_tags
 }
 
@@ -141,24 +141,24 @@ resource "aws_ecs_service" "chat_app_service" {
   cluster         = aws_ecs_cluster.chat_app_cluster.id
   task_definition = aws_ecs_task_definition.chat_app_task.arn
   desired_count   = 1
-  
+
   ordered_placement_strategy {
     type  = "binpack"
     field = "cpu"
   }
-  
+
   tags = local.common_tags
 }
 
 data "aws_ami" "ecs_ami" {
   most_recent = true
   owners      = ["amazon"]
-  
+
   filter {
     name   = "name"
     values = ["amzn2-ami-ecs-hvm-*-x86_64-ebs"]
   }
-  
+
   filter {
     name   = "virtualization-type"
     values = ["hvm"]

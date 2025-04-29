@@ -23,7 +23,7 @@ resource "aws_s3_bucket_public_access_block" "chat_app_bucket_access" {
 
 resource "aws_s3_bucket_versioning" "chat_app_bucket_versioning" {
   bucket = aws_s3_bucket.chat_app_bucket.id
-  
+
   versioning_configuration {
     status = "Enabled"
   }

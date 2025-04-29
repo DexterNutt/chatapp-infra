@@ -15,8 +15,8 @@ locals {
   project_name = "chat-app"
   environment  = "intern"
   region       = "eu-north-1"
-  
-   common_tags = {
+
+  common_tags = {
     Project     = "Intern"
     Environment = "Development"
     ManagedBy   = "Terraform"

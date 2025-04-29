@@ -41,7 +41,7 @@ resource "aws_iam_role" "ecs_instance_role" {
 resource "aws_iam_policy" "ecs_s3_access_policy" {
   name        = "${local.project_name}-s3-access-policy"
   description = "Policy to allow ECS tasks to access S3 bucket"
-  
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -60,7 +60,7 @@ resource "aws_iam_policy" "ecs_s3_access_policy" {
       }
     ]
   })
-  
+
   tags = local.common_tags
 }
 
