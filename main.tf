@@ -291,6 +291,87 @@ resource "aws_iam_policy" "s3_access" {
     Name = local.resource_names.s3_policy
   })
 }
+
+# ------------------------------
+# ECR Repository Configuration
+# ------------------------------
+
+resource "aws_ecr_repository" "app_repo" {
+  name                 = "${local.name_prefix}-app-repo"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-app-repo"
+  })
+}
+
+resource "aws_ecr_repository" "nginx_repo" {
+  name                 = "${local.name_prefix}-nginx-repo"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-nginx-repo"
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "app_policy" {
+  repository = aws_ecr_repository.app_repo.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1,
+        description  = "Keep last 3 images",
+        selection = {
+          tagStatus   = "any",
+          countType   = "imageCountMoreThan",
+          countNumber = 3
+        },
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "nginx_policy" {
+  repository = aws_ecr_repository.nginx_repo.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1,
+        description  = "Keep last 3 images",
+        selection = {
+          tagStatus   = "any",
+          countType   = "imageCountMoreThan",
+          countNumber = 3
+        },
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
 # ------------------------------
 # ECS Cluster Configuration
 # ------------------------------
@@ -356,23 +437,23 @@ resource "aws_launch_template" "ecs_ec2" {
   image_id      = data.aws_ami.ecs_optimized.id
   instance_type = local.instance_type
   key_name      = var.ssh_public_key != "" ? (var.ssh_key_name != "" ? var.ssh_key_name : "${local.name_prefix}-key") : null
-  
+
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.ecs_sg.id]
     subnet_id                   = aws_subnet.public[0].id
   }
-  
+
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_ec2.name
   }
-  
+
   user_data = base64encode(<<EOF
 #!/bin/bash
 echo ECS_CLUSTER=${aws_ecs_cluster.app_cluster.name} >> /etc/ecs/ecs.config
 EOF
   )
-  
+
   tag_specifications {
     resource_type = "instance"
     tags = merge(local.common_tags, {
@@ -533,10 +614,9 @@ resource "aws_ecs_task_definition" "my_app" {
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   cpu                      = 512
   memory                   = 1024
-
   container_definitions = jsonencode([{
     name      = local.resource_names.ecs_container
-    image     = "590184111199.dkr.ecr.${local.region}.amazonaws.com/my-app:latest"
+    image     = aws_ecr_repository.app_repo.repository_url
     cpu       = 512
     memory    = 1024
     essential = true
@@ -582,11 +662,11 @@ resource "aws_ecs_task_definition" "my_app" {
       }
     ]
   }])
-
   tags = merge(local.common_tags, {
     Name = local.resource_names.ecs_task
   })
 }
+
 resource "aws_ecs_task_definition" "nginx" {
   family                   = "${local.name_prefix}-nginx-task"
   network_mode             = "host"
@@ -594,10 +674,9 @@ resource "aws_ecs_task_definition" "nginx" {
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   cpu                      = 256
   memory                   = 512
-
   container_definitions = jsonencode([{
     name      = "nginx"
-    image     = "590184111199.dkr.ecr.${local.region}.amazonaws.com/my-nginx:latest"
+    image     = aws_ecr_repository.nginx_repo.repository_url
     cpu       = 256
     memory    = 512
     essential = true
@@ -615,11 +694,69 @@ resource "aws_ecs_task_definition" "nginx" {
       }
     }
   }])
-
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-nginx-task"
   })
 }
+
+resource "aws_ecs_task_definition" "migrations" {
+  family                   = "${local.resource_names.ecs_task}-migrations"
+  network_mode             = "host"
+  requires_compatibilities = ["EC2"]
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  cpu                      = 256
+  memory                   = 512
+
+  container_definitions = jsonencode([{
+    name       = "${local.resource_names.ecs_container}-migrations"
+    image      = "${aws_ecr_repository.app_repo.repository_url}:latest"
+    cpu        = 256
+    memory     = 512
+    essential  = true
+    entryPoint = ["bun"]
+    command    = ["src/scripts/migrate.ts", "db-migrate"]
+
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = local.resource_names.logs
+        awslogs-region        = local.region
+        awslogs-stream-prefix = "ecs"
+      }
+    }
+
+    environment = [
+      {
+        name  = "DB_HOST"
+        value = aws_db_instance.postgres.address
+      },
+      {
+        name  = "DB_PORT"
+        value = tostring(local.db_port)
+      },
+      {
+        name  = "DB_NAME"
+        value = aws_db_instance.postgres.db_name
+      },
+      {
+        name  = "DB_USER"
+        value = aws_db_instance.postgres.username
+      }
+    ]
+
+    secrets = [
+      {
+        name      = "DB_PASSWORD"
+        valueFrom = "arn:aws:ssm:${local.region}:${data.aws_caller_identity.current.account_id}:parameter/myapp/db/password"
+      }
+    ]
+  }])
+
+  tags = merge(local.common_tags, {
+    Name = "${local.resource_names.ecs_task}-migrations"
+  })
+}
+
 # ------------------------------
 # ECS Services
 # ------------------------------
@@ -664,6 +801,7 @@ resource "aws_cloudwatch_log_group" "nginx" {
     Name = "${local.name_prefix} Nginx Logs"
   })
 }
+
 # ------------------------------
 # SSM Parameter for database password
 # ------------------------------
@@ -676,6 +814,7 @@ resource "aws_ssm_parameter" "db_password" {
     Name = "Database Password Parameter"
   })
 }
+
 # ------------------------------
 # Outputs
 # ------------------------------
@@ -683,23 +822,38 @@ output "vpc_id" {
   description = "The ID of the VPC"
   value       = aws_vpc.main.id
 }
+
 output "public_subnet_ids" {
   description = "The IDs of the public subnets"
   value       = aws_subnet.public[*].id
 }
+
 output "private_subnet_ids" {
   description = "The IDs of the private subnets"
   value       = aws_subnet.private[*].id
 }
+
 output "rds_endpoint" {
   description = "The connection endpoint for the PostgreSQL RDS instance"
   value       = aws_db_instance.postgres.endpoint
 }
+
 output "s3_bucket_name" {
   description = "The name of the S3 bucket"
   value       = aws_s3_bucket.app_data.bucket
 }
+
 output "nat_gateway_public_ip" {
   description = "The public IP address of the NAT Gateway"
   value       = aws_nat_gateway.main.public_ip
+}
+
+output "app_repository_url" {
+  description = "The URL of the application ECR repository"
+  value       = aws_ecr_repository.app_repo.repository_url
+}
+
+output "nginx_repository_url" {
+  description = "The URL of the Nginx ECR repository"
+  value       = aws_ecr_repository.nginx_repo.repository_url
 }
