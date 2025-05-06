@@ -3,3 +3,5 @@
 *.tfvars
 .test*
 *.pem
+.main.tf
+policy.json

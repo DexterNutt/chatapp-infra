@@ -4,6 +4,18 @@ variable "aws_region" {
   default     = "eu-north-1"
 }
 
+variable "github_actions_user" {
+  description = "Name of the IAM user that will assume the GitHub Actions role"
+  type        = string
+  default     = "demjan"
+}
+
+variable "create_github_actions_user_policy" {
+  description = "Whether to create a policy for the IAM user to assume the GitHub Actions role"
+  type        = bool
+  default     = true
+}
+
 variable "environment" {
   description = "Deployment environment (e.g. dev, staging, prod)"
   type        = string
