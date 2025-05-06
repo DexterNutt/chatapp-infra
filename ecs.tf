@@ -127,24 +127,6 @@ resource "aws_autoscaling_group" "ecs_asg" {
 }
 
 # ------------------------------
-# AMI Data Source
-# ------------------------------
-data "aws_ami" "ecs_optimized" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-ecs-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
-# ------------------------------
 # ECS Task Definitions
 # ------------------------------
 resource "aws_ecs_task_definition" "app" {
@@ -325,22 +307,19 @@ resource "aws_ecs_service" "nginx" {
 }
 
 # ------------------------------
-# CloudWatch Log Groups
+# AMI Data Source
 # ------------------------------
-resource "aws_cloudwatch_log_group" "app" {
-  name              = local.resource_names.logs
-  retention_in_days = 7
+data "aws_ami" "ecs_optimized" {
+  most_recent = true
+  owners      = ["amazon"]
 
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix} App Logs"
-  })
-}
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-ecs-*"]
+  }
 
-resource "aws_cloudwatch_log_group" "nginx" {
-  name              = "/ecs/nginx-${local.name_prefix}"
-  retention_in_days = 7
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix} Nginx Logs"
-  })
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
 }

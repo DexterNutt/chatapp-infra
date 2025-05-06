@@ -1,33 +1,7 @@
 # ------------------------------
 # IAM Configuration
 # ------------------------------
-
-resource "aws_iam_policy" "s3_access" {
-  name        = local.resource_names.s3_policy
-  description = "Allow ECS tasks to access S3 bucket"
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:ListBucket"
-        ],
-        Effect = "Allow",
-        Resource = [
-          aws_s3_bucket.app_data.arn,
-          "${aws_s3_bucket.app_data.arn}/*"
-        ]
-      }
-    ]
-  })
-  tags = merge(local.common_tags, {
-    Name = local.resource_names.s3_policy
-  })
-}
-
-
+# Create IAM role for GitHub Actions
 resource "aws_iam_role" "github_actions_role" {
   name = "${local.name_prefix}-github-actions-role"
   assume_role_policy = jsonencode({
@@ -47,6 +21,7 @@ resource "aws_iam_role" "github_actions_role" {
   })
 }
 
+# Create policy for GitHub Actions with permissions for ECR and ECS
 resource "aws_iam_policy" "github_actions_policy" {
   name        = "${local.name_prefix}-github-actions-policy"
   description = "Policy for GitHub Actions to deploy to ECR and ECS"
@@ -134,6 +109,7 @@ resource "aws_iam_instance_profile" "ecs_ec2" {
     Name = local.resource_names.instance_profile
   })
 }
+
 resource "aws_iam_role" "ec2_role" {
   name = local.resource_names.instance_role
 
@@ -154,10 +130,12 @@ resource "aws_iam_role" "ec2_role" {
     Name = local.resource_names.instance_role
   })
 }
+
 resource "aws_iam_role_policy_attachment" "ec2_ecs_policy" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
 }
+
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = local.resource_names.task_role
 
@@ -178,15 +156,18 @@ resource "aws_iam_role" "ecs_task_execution_role" {
     Name = local.resource_names.task_role
   })
 }
+
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
+
 resource "aws_iam_role_policy_attachment" "ecs_s3_policy" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = aws_iam_policy.s3_access.arn
 }
 
+# Add policy to allow access to RDS
 resource "aws_iam_policy" "rds_access" {
   name        = "${local.name_prefix}-rds-access-policy"
   description = "Allow ECS tasks to access RDS"
@@ -208,7 +189,34 @@ resource "aws_iam_policy" "rds_access" {
     Name = "${local.name_prefix}-rds-access-policy"
   })
 }
+
 resource "aws_iam_role_policy_attachment" "ecs_rds_policy" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = aws_iam_policy.rds_access.arn
+}
+
+# IAM Policy for S3 Access
+resource "aws_iam_policy" "s3_access" {
+  name        = local.resource_names.s3_policy
+  description = "Allow ECS tasks to access S3 bucket"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket"
+        ],
+        Effect = "Allow",
+        Resource = [
+          aws_s3_bucket.app_data.arn,
+          "${aws_s3_bucket.app_data.arn}/*"
+        ]
+      }
+    ]
+  })
+  tags = merge(local.common_tags, {
+    Name = local.resource_names.s3_policy
+  })
 }
